@@ -31,7 +31,8 @@ def traverse_nodes(node: MCTSNode, board: Board, state, bot_identity: int):
     rootNode = MCTSNode(parent=None, parent_action=None, action_list=board.legal_actions(state))
     while node:
         newNode = MCTSNode(parent=rootNode, parent_action=None, action_list=get_best_action(rootNode))
-        Delta = is_win(board, rollout(board, state, bot_identity))
+        newState = rollout(board, state)
+        Delta = is_win(board, newState, bot_identity)
         backpropagate(newNode, Delta)
 
     for child in node.child_nodes: #tries to find the best child
@@ -41,7 +42,7 @@ def traverse_nodes(node: MCTSNode, board: Board, state, bot_identity: int):
         if total > previous:
             hold = child.key()
 
-    return hold, 
+    return hold, newState
                     
 
 
