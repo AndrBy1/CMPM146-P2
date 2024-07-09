@@ -4,10 +4,10 @@ from p2_t3 import Board
 from random import choice
 from math import sqrt, log
 
-num_nodes = 100
+num_nodes = 1000
 exploration_factor = 2.
 
-def traverse_nodes(node: MCTSNode, board: Board, state, bot_identity: int): 
+def traverse_nodes(node: MCTSNode, board: Board, state, bot_identity: int):
     """ Traverses the tree until the end criterion are met.
     e.g. find the best expandable node (node with untried action) if it exist,
     or else a terminal node
@@ -23,34 +23,21 @@ def traverse_nodes(node: MCTSNode, board: Board, state, bot_identity: int):
         state: The state associated with that node
 
     """
-    """
-    """
     while not board.is_ended:
-        if len(board.legal_actions(state)) == len(node.untried_actions):
+        if not node.child_nodes:
             return expand_leaf(node, board, state)
         else:
-            node.untried_actions.append(get_best_action(node))
-
-    return node
+            # generates a list of tuples (ucb, action) for every untried action
+            ucbs = [(ucb(node.child_nodes[action], bot_identity == board.current_player), action) for action in node.untried_actions]
+            
+            # maximizes ucb if its the player's turn otherwise minimizes it if it's the opponent's turn
+            best_action = max(ucbs)[1] if bot_identity == board.current_player else min(ucbs)[1]
+            
+            # updates new node to be best child and state to be next state
+            node = node.child_nodes[best_action]
+            state = board.next_state(state, best_action)
     
-"""hold = node
-    previous = 0
-    rootNode = MCTSNode(parent=None, parent_action=None, action_list=board.legal_actions(state))
-    while node:
-        
-        newNode = MCTSNode(parent=rootNode, parent_action=None, action_list=get_best_action(rootNode))
-        newState = rollout(board, state)
-        Delta = is_win(board, newState, bot_identity)
-        backpropagate(newNode, Delta)
-
-    for child in node.child_nodes: #tries to find the best child
-        known_strat = child.key().wins / child.key().visits
-        new_strat = 0
-        total = known_strat + new_strat
-        if total > previous:
-            hold = child.key()
-
-    return hold, newState"""   
+    return node, state
 
 def expand_leaf(node: MCTSNode, board: Board, state):
     """ Adds a new leaf to the tree by creating a new child node for the given node (if it is non-terminal).
@@ -65,18 +52,15 @@ def expand_leaf(node: MCTSNode, board: Board, state):
         state: The state associated with that node
 
     """
-    if len(node.child_nodes.values()) > 0 or board.is_ended(state):
+    if board.is_ended(state):
         return False
     
-    if len(board.legal_actions(state)) == 0:
-        return False
-    
-    action = choice(board.legal_actions(state))
+    action = choice(node.untried_actions)
     new_state = board.next_state(action)
     child = MCTSNode(parent=node, parent_action=action, action_list=board.legal_actions(new_state))
+    node.child_nodes[action] = child
     
     return child, new_state
-
 
 
 def rollout(board: Board, state): #simulation stage of MCTS
@@ -95,7 +79,6 @@ def rollout(board: Board, state): #simulation stage of MCTS
 
     return state
 
-
 def backpropagate(node: MCTSNode|None, won: bool):
     """ Navigates the tree from a leaf node to the root, updating the win and visit count of each node along the path.
 
@@ -105,9 +88,9 @@ def backpropagate(node: MCTSNode|None, won: bool):
 
     """
     if node:
-        node.wins += 1 if bool else -1
+        node.wins += 1 if won else -1
         node.visits += 1
-        backpropagate(node.parent, bool)
+        backpropagate(node.parent, not won)
 
 def ucb(node: MCTSNode, is_opponent: bool):
     """ Calcualtes the UCB value for the given node from the perspective of the bot
@@ -120,14 +103,23 @@ def ucb(node: MCTSNode, is_opponent: bool):
     """
     
     max_win_ratio = 0
+    # doing the node stuff first to reduce computations
+    # c * sqrt(ln(t))
     exploration_estimate_top = exploration_factor * sqrt(log(node.visits))
     for child in node.child_nodes.values():
+        # w/v
         child_win_ratio = child.wins / child.visits
+        
+        # sqrt(v)
         exploration_estimate_bottom = sqrt(child.visits)
+        
+        # w/v + c * (sqrt(ln(t)) / sqrt(v))
         win_ratio = child_win_ratio + exploration_estimate_top / exploration_estimate_bottom
+        
+        # maximize this ratio
         if win_ratio > max_win_ratio:
             max_win_ratio = win_ratio
-                
+           
     return max_win_ratio if is_opponent else 1 - max_win_ratio
 
 def get_best_action(root_node: MCTSNode):
@@ -140,7 +132,16 @@ def get_best_action(root_node: MCTSNode):
     
     """
     
-    pass
+    max_ucb = 0
+    best_action = None
+    for action in root_node.untried_actions:
+        child = root_node.child_nodes[action]
+        child_ucb = ucb(child, True)
+        if child_ucb > max_ucb:
+            best_action = action
+            max_ucb = child_ucb
+    
+    return best_action
 
 def is_win(board: Board, state, identity_of_bot: int):
     # checks if state is a win state for identity_of_bot
@@ -167,6 +168,10 @@ def think(board: Board, current_state):
 
         # Do MCTS - This is all you!
         # ...
+        node = traverse_nodes(root_node)
+        state = rollout(board, state)
+        sim = is_win(board, state, bot_identity)
+        backpropagate(node, sim)
 
     # Return an action, typically the most frequently used action (from the root) or the action with the best
     # estimated win rate.
