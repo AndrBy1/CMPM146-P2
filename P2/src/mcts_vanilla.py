@@ -8,7 +8,7 @@ from math import sqrt, log
 num_nodes = 100
 exploration_factor = 2.
 
-def traverse_nodes(node: MCTSNode, board: Board, state, bot_identity: int): #selection stage I think
+def traverse_nodes(node: MCTSNode, board: Board, state, bot_identity: int): 
     """ Traverses the tree until the end criterion are met.
     e.g. find the best expandable node (node with untried action) if it exist,
     or else a terminal node
@@ -24,14 +24,26 @@ def traverse_nodes(node: MCTSNode, board: Board, state, bot_identity: int): #sel
         state: The state associated with that node
 
     """
-    if node:
-        #looking for best expandable node
-        node.visits += 1
-        for action in node.untried_actions:
-            traverse_nodes(node.untried_actions[action], board, state, bot_identity)
-        
-        #terminal node
-    pass
+    """
+    """
+    hold = node
+    previous = 0
+    rootNode = MCTSNode(parent=None, parent_action=None, action_list=board.legal_actions(state))
+    while node:
+        newNode = MCTSNode(parent=rootNode, parent_action=None, action_list=get_best_action(rootNode))
+        Delta = is_win(board, rollout(board, state, bot_identity))
+        backpropagate(newNode, Delta)
+
+    for child in node.child_nodes: #tries to find the best child
+        known_strat = child.key().wins / child.key().visits
+        new_strat = 0
+        total = known_strat + new_strat
+        if total > previous:
+            hold = child.key()
+
+    return hold, 
+                    
+
 
 def expand_leaf(node: MCTSNode, board: Board, state):
     """ Adds a new leaf to the tree by creating a new child node for the given node (if it is non-terminal).
@@ -47,16 +59,16 @@ def expand_leaf(node: MCTSNode, board: Board, state):
 
     """
     newNode = MCTSNode(node, parent_action, action_list)
+    
 
     if len(node.child_nodes.values()) > 0:
         node.child_nodes.append(newNode)
     
     
-    
     pass
 
 
-def rollout(board: Board, state): #This is the simulation stage of MCTS
+def rollout(board: Board, state): #simulation stage of MCTS
     """ Given the state of the game, the rollout plays out the remainder randomly.
 
     Args:
@@ -67,9 +79,10 @@ def rollout(board: Board, state): #This is the simulation stage of MCTS
         state: The terminal game state
 
     """
+    while state:
+        state = board.next_state(state, random.choice(board.legal_actions(state)))
 
-
-    pass
+    return state
 
 
 def backpropagate(node: MCTSNode|None, won: bool):
