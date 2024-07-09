@@ -1,5 +1,4 @@
 
-
 from mcts_node import MCTSNode
 from p2_t3 import Board
 from random import choice
@@ -26,10 +25,19 @@ def traverse_nodes(node: MCTSNode, board: Board, state, bot_identity: int):
     """
     """
     """
-    hold = node
+    while not board.is_ended:
+        if len(board.legal_actions(state)) == len(node.untried_actions):
+            return expand_leaf(node, board, state)
+        else:
+            node.untried_actions.append(get_best_action(node))
+
+    return node
+    
+"""hold = node
     previous = 0
     rootNode = MCTSNode(parent=None, parent_action=None, action_list=board.legal_actions(state))
     while node:
+        
         newNode = MCTSNode(parent=rootNode, parent_action=None, action_list=get_best_action(rootNode))
         newState = rollout(board, state)
         Delta = is_win(board, newState, bot_identity)
@@ -42,9 +50,7 @@ def traverse_nodes(node: MCTSNode, board: Board, state, bot_identity: int):
         if total > previous:
             hold = child.key()
 
-    return hold, newState
-                    
-
+    return hold, newState"""   
 
 def expand_leaf(node: MCTSNode, board: Board, state):
     """ Adds a new leaf to the tree by creating a new child node for the given node (if it is non-terminal).
@@ -59,14 +65,18 @@ def expand_leaf(node: MCTSNode, board: Board, state):
         state: The state associated with that node
 
     """
-    newNode = MCTSNode(node, parent_action, action_list)
+    if len(node.child_nodes.values()) > 0 or board.is_ended(state):
+        return False
     
+    if len(board.legal_actions(state)) == 0:
+        return False
+    
+    action = choice(board.legal_actions(state))
+    new_state = board.next_state(action)
+    child = MCTSNode(parent=node, parent_action=action, action_list=board.legal_actions(new_state))
+    
+    return child, new_state
 
-    if len(node.child_nodes.values()) > 0:
-        node.child_nodes.append(newNode)
-    
-    
-    pass
 
 
 def rollout(board: Board, state): #simulation stage of MCTS
@@ -80,8 +90,8 @@ def rollout(board: Board, state): #simulation stage of MCTS
         state: The terminal game state
 
     """
-    while state:
-        state = board.next_state(state, random.choice(board.legal_actions(state)))
+    while not board.is_ended:
+        state = board.next_state(state, choice(board.legal_actions(state)))
 
     return state
 
